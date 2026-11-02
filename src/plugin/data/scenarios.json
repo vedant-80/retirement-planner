@@ -1,0 +1,266 @@
+{
+  "comfortable": {
+    "balances": {
+      "cash_cents": 5000000,
+      "tax_deferred_cents": 80000000,
+      "tax_free_cents": 20000000
+    },
+    "assumptions": {
+      "annual_spending_cents": 4000000,
+      "annual_income_cents": 1200000,
+      "income_start_year": 1,
+      "inflation_bps": 250,
+      "cash_return_bps": 100,
+      "deferred_return_bps": 400,
+      "tax_free_return_bps": 400,
+      "minimum_deferred_bps": 400
+    },
+    "tax_schedule": {
+      "brackets": [
+        {
+          "upper_cents": 2000000,
+          "rate_bps": 0
+        },
+        {
+          "upper_cents": 5000000,
+          "rate_bps": 1000
+        },
+        {
+          "upper_cents": 0,
+          "rate_bps": 2000
+        }
+      ]
+    }
+  },
+  "early-retirement": {
+    "balances": {
+      "cash_cents": 10000000,
+      "tax_deferred_cents": 40000000,
+      "tax_free_cents": 10000000
+    },
+    "assumptions": {
+      "annual_spending_cents": 4500000,
+      "annual_income_cents": 1200000,
+      "income_start_year": 8,
+      "inflation_bps": 250,
+      "cash_return_bps": 100,
+      "deferred_return_bps": 400,
+      "tax_free_return_bps": 400,
+      "minimum_deferred_bps": 400
+    },
+    "tax_schedule": {
+      "brackets": [
+        {
+          "upper_cents": 2000000,
+          "rate_bps": 0
+        },
+        {
+          "upper_cents": 5000000,
+          "rate_bps": 1000
+        },
+        {
+          "upper_cents": 0,
+          "rate_bps": 2000
+        }
+      ]
+    }
+  },
+  "depleting": {
+    "balances": {
+      "cash_cents": 100000,
+      "tax_deferred_cents": 3000000,
+      "tax_free_cents": 200000
+    },
+    "assumptions": {
+      "annual_spending_cents": 3500000,
+      "annual_income_cents": 1000000,
+      "income_start_year": 1,
+      "inflation_bps": 250,
+      "cash_return_bps": 100,
+      "deferred_return_bps": 400,
+      "tax_free_return_bps": 400,
+      "minimum_deferred_bps": 400
+    },
+    "tax_schedule": {
+      "brackets": [
+        {
+          "upper_cents": 2000000,
+          "rate_bps": 0
+        },
+        {
+          "upper_cents": 5000000,
+          "rate_bps": 1000
+        },
+        {
+          "upper_cents": 0,
+          "rate_bps": 2000
+        }
+      ]
+    }
+  },
+  "income-only": {
+    "balances": {
+      "cash_cents": 0,
+      "tax_deferred_cents": 0,
+      "tax_free_cents": 0
+    },
+    "assumptions": {
+      "annual_spending_cents": 1000000,
+      "annual_income_cents": 1200000,
+      "income_start_year": 1,
+      "inflation_bps": 0,
+      "cash_return_bps": 0,
+      "deferred_return_bps": 0,
+      "tax_free_return_bps": 0,
+      "minimum_deferred_bps": 0
+    },
+    "tax_schedule": {
+      "brackets": [
+        {
+          "upper_cents": 2000000,
+          "rate_bps": 0
+        },
+        {
+          "upper_cents": 5000000,
+          "rate_bps": 1000
+        },
+        {
+          "upper_cents": 0,
+          "rate_bps": 2000
+        }
+      ]
+    }
+  },
+  "exact-funds": {
+    "balances": {
+      "cash_cents": 10000,
+      "tax_deferred_cents": 0,
+      "tax_free_cents": 0
+    },
+    "assumptions": {
+      "annual_spending_cents": 10000,
+      "annual_income_cents": 0,
+      "income_start_year": 1,
+      "inflation_bps": 0,
+      "cash_return_bps": 0,
+      "deferred_return_bps": 0,
+      "tax_free_return_bps": 0,
+      "minimum_deferred_bps": 0
+    },
+    "tax_schedule": {
+      "brackets": [
+        {
+          "upper_cents": 2000000,
+          "rate_bps": 0
+        },
+        {
+          "upper_cents": 5000000,
+          "rate_bps": 1000
+        },
+        {
+          "upper_cents": 0,
+          "rate_bps": 2000
+        }
+      ]
+    }
+  },
+  "market-loss": {
+    "balances": {
+      "cash_cents": 1000000,
+      "tax_deferred_cents": 15000000,
+      "tax_free_cents": 5000000
+    },
+    "assumptions": {
+      "annual_spending_cents": 2000000,
+      "annual_income_cents": 1200000,
+      "income_start_year": 1,
+      "inflation_bps": 250,
+      "cash_return_bps": 0,
+      "deferred_return_bps": -500,
+      "tax_free_return_bps": -1000,
+      "minimum_deferred_bps": 400
+    },
+    "tax_schedule": {
+      "brackets": [
+        {
+          "upper_cents": 2000000,
+          "rate_bps": 0
+        },
+        {
+          "upper_cents": 5000000,
+          "rate_bps": 1000
+        },
+        {
+          "upper_cents": 0,
+          "rate_bps": 2000
+        }
+      ]
+    }
+  },
+  "tax-gross-up": {
+    "balances": {
+      "cash_cents": 0,
+      "tax_deferred_cents": 10000000,
+      "tax_free_cents": 0
+    },
+    "assumptions": {
+      "annual_spending_cents": 5500000,
+      "annual_income_cents": 0,
+      "income_start_year": 1,
+      "inflation_bps": 0,
+      "cash_return_bps": 0,
+      "deferred_return_bps": 0,
+      "tax_free_return_bps": 0,
+      "minimum_deferred_bps": 0
+    },
+    "tax_schedule": {
+      "brackets": [
+        {
+          "upper_cents": 2000000,
+          "rate_bps": 0
+        },
+        {
+          "upper_cents": 5000000,
+          "rate_bps": 1000
+        },
+        {
+          "upper_cents": 0,
+          "rate_bps": 2000
+        }
+      ]
+    }
+  },
+  "mandatory-surplus": {
+    "balances": {
+      "cash_cents": 0,
+      "tax_deferred_cents": 10000000,
+      "tax_free_cents": 0
+    },
+    "assumptions": {
+      "annual_spending_cents": 10000,
+      "annual_income_cents": 0,
+      "income_start_year": 1,
+      "inflation_bps": 0,
+      "cash_return_bps": 0,
+      "deferred_return_bps": 0,
+      "tax_free_return_bps": 0,
+      "minimum_deferred_bps": 1000
+    },
+    "tax_schedule": {
+      "brackets": [
+        {
+          "upper_cents": 2000000,
+          "rate_bps": 0
+        },
+        {
+          "upper_cents": 5000000,
+          "rate_bps": 1000
+        },
+        {
+          "upper_cents": 0,
+          "rate_bps": 2000
+        }
+      ]
+    }
+  }
+}
