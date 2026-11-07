@@ -1,6 +1,6 @@
 """Independent Decimal annual replay with bracketwise withdrawal gross-up."""
 from decimal import Decimal, ROUND_HALF_UP, localcontext
-from plugin.data import scenario
+from .fixtures import scenario
 
 def validate_arguments(args):
     if type(args) is not dict or set(args) != {'scenario_id', 'years'}:
