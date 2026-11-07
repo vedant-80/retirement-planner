@@ -1,24 +1,11 @@
-"""Read-only scenario tools. None calculates the task's final answer."""
-import json
-from importlib.resources import files
-from .data import scenario, field
+"""The task's one deterministic calculation tool."""
 
-def get_rules(value, workspace):
-    """Retrieve the precise fictional financial rules and rounding conventions."""
-    return json.loads(files('plugin').joinpath('data/rules.json').read_text())
+from .calculations import solve
 
 
-def get_account_balances(value, workspace):
-    """Retrieve starting cash, tax-deferred, and tax-free account balances."""
-    return scenario(field(value, 'scenario_id'))['balances']
-
-def get_assumptions(value, workspace):
-    """Retrieve fixed annual spending, pension, growth, and withdrawal assumptions."""
-    return scenario(field(value, 'scenario_id'))['assumptions']
-
-def get_tax_schedule(value, workspace):
-    """Retrieve fictional progressive brackets; upper_cents=0 means unlimited."""
-    return scenario(field(value, 'scenario_id'))['tax_schedule']
+def calculate_retirement(value, workspace):
+    """Calculate the complete result in Python; returns only a compact summary and assumptions."""
+    return solve(value)
 
 
-IMPLEMENTATIONS = {'get_account_balances': get_account_balances, 'get_assumptions': get_assumptions, 'get_tax_schedule': get_tax_schedule, 'get_rules': get_rules}
+IMPLEMENTATIONS = {"calculate_retirement": calculate_retirement}

@@ -1,115 +1,62 @@
-# Retirement Sustainability Planner
+# Retirement Age Calculator
 
-Project whether a retirement portfolio funds annual spending for a configurable 1–60 year horizon. Use a prescribed withdrawal policy, account returns, inflation, pension timing, and fictional progressive taxation. The normal example covers 30 years.
-
-Task ID: `project-retirement`. Runner: `agent`. Each monetary value is an integer number of cents; a basis point is 1/100 of a percentage point. No tool solves the task or calls an LLM. All scenarios are synthetic, bundled JSON fixtures, not live financial data.
-
-## Task input and output
-
-Example task input:
-
-```json
-{
-  "scenario_id": "comfortable",
-  "years": 30
-}
-```
-
-The complete typed output is `RetirementOutput` in `contract.py`; nested row types also live there. All fields and rows are required. Month/year indices start at 1. Only the scenario IDs listed below are accepted. Arbitrary financial inputs are deliberately outside this task's scope.
-
-Submit every year through the requested horizon or the first shortfall. All growth, pension income, required withdrawals, actual withdrawals, tax, surplus, shortfall, balances, and summary fields must match the prescribed policy. sustainable=true means no shortfall during this finite projection; it is not a guarantee about real retirement.
+A custom-input deterministic calculator, not a bundled-scenario exercise. Money is integer cents in one currency. Rates are integer basis points (100 basis points = 1%). The host chat translates a description into typed input and asks for missing personal facts. The task itself runs one Python tool without an inner LLM loop. The model does not produce schedules.
 
 ## Tools
 
-Task `project-retirement` uses the following tools.
+Task `project-retirement` directly runs `calculate_retirement`. Both share the same typed input and compact output in `contract.py`. Essential personal inputs have no defaults; ask for them. Nullable assumption keys are still required in machine input: pass `null` to use their documented defaults. Zero is an explicit value, not a request for a default. Effective assumptions and the names of defaulted fields are always returned.
 
-| Tool | Input | Output |
-|---|---|---|
-| `get_account_balances` | scenario_id | Initial cash, tax-deferred, and tax-free balances. |
-| `get_assumptions` | scenario_id | Spending, pension amount and start year, inflation, account returns, and mandatory withdrawal rate. |
-| `get_tax_schedule` | scenario_id | Fictional marginal brackets in cents and basis points. The last upper_cents=0 means no upper limit. |
-| `get_rules` | none | Annual event order, withdrawal priority, tax treatment, rounding, and failure behavior. |
+```json
+{
+  "current_age": 40,
+  "investments_cents": 25000000,
+  "annual_income_cents": 10000000,
+  "annual_expenses_cents": 5000000,
+  "investment_return_bps": null,
+  "wage_growth_bps": null,
+  "spending_inflation_bps": null
+}
+```
 
-## Exact financial rules
+## Financial rules
 
-1. This is a fictional deterministic model, not current tax law or investment advice. Money is integer cents.
-2. Project 1 to 60 years (default CLI example: 30). Year 1 uses annual_spending_cents; later spending increases by inflation_bps, rounded to cents.
-3. At the start of each year apply each account annual return to its opening balance, rounding the signed gain to nearest cent, ties away from zero.
-4. Pension income is taxable and starts in income_start_year. There is no other income or tax deduction.
-5. Tax brackets list cumulative upper_cents and rate_bps, with upper_cents=0 for the final unlimited bracket. Compute total progressive tax exactly, then round once to cents, ties up.
-6. First withdraw the required minimum from tax_deferred: post-growth balance times minimum_deferred_bps, rounded to cents.
-7. To cover spending plus tax, use cash first, then additional tax_deferred, then tax_free. At each step withdraw the smallest whole-cent amount sufficient, or exhaust the account.
-8. Cash and tax_free withdrawals are untaxed. All tax_deferred withdrawals are taxable. Recompute tax as withdrawals increase.
-9. Any surplus after spending and tax is deposited into cash at year end. On failure, report the shortfall and stop at that year. first_shortfall_year=0 means no failure in the requested horizon.
+Required inputs: current age (integer 0–99), invested balance, annual take-home income, and annual expenses. Monetary inputs range from 0 to 10^15 cents. Starting age 100 or above produces a clear validation error, not an exception trace in normal MCP use. Missing essential values must be requested; gross income must not be treated as take-home income without clarification.
 
-## Bundled scenarios
+Defaults: nominal investment return 900 bps (9%), annual wage growth 200 bps (2%), spending inflation 200 bps (2%). Return and wage growth allow −10000 to 10000 bps; spending inflation allows 0 to 10000 bps. The maximum search age is fixed at 100 and the withdrawal rate is fixed at 400 bps (4%). Users can override the three nullable rates, not the 4% rule or age limit.
 
-- `comfortable`
-- `early-retirement`
-- `depleting`
-- `income-only`
-- `exact-funds`
-- `market-loss`
-- `tax-gross-up`
-- `mandatory-surplus`
+At the current age, check investments >= 25 × current annual expenses. If true, retirement is immediate. Otherwise, for each working year: apply the return to opening investments; add that year's take-home income minus expenses at year-end; grow income and expenses for the next year; then check the target on the next birthday. Every growth amount is rounded separately to cents, nearest with ties away from zero. New savings receive returns starting the next year. Spending inflation is separate from wage growth and investment returns are nominal, not inflation-adjusted.
 
-Data: `src/plugin/data/scenarios.json`; authoritative rule text: `src/plugin/data/rules.json`. Scenario IDs are dictionary keys, never paths. Tools reread packaged fixtures and do not mutate data or use the workspace. Permission declarations request no network hosts or filesystem writes.
+Income shortfalls draw down investments after returns. If funds cannot cover the shortfall, stop without borrowing and report `funding_shortfall`, with investments zero. Otherwise search through the 100th birthday inclusively. If no qualifying age is found, report `search_limit`. A non-successful result uses null retirement age/years; projected amounts describe the final projection age. Zero expenses imply a zero target and immediate qualification.
+
+Output: earliest retirement age, years remaining, projected investments/expenses, the 25× target, status, and assumptions. No yearly schedule. This is the earliest age under these fixed assumptions, not a guarantee of retirement safety. It does not simulate post-retirement withdrawals or test survival to a planning age.
+
+Out of scope: taxes (use take-home income), pensions/Social Security, contribution limits, account types, investment volatility, fees beyond the supplied return, currency conversion, debts, and borrowing. Annual expenses are assumed to continue into retirement at the inflation-adjusted level.
 
 ## Layout
 
-```text
-contract.py             Typed task/tool schemas and registries
-nanoagent.yaml          NanoAgent runtime, permissions, tools, and agent task
-pyproject.toml, uv.lock Standalone package metadata and pinned dependencies
-src/plugin/            MCP server, read-only tools, bundled data, offline sample calculations
-verifier/              Semantic validation and independent financial replay
-tests/                 Verifier tests, validation/example CLIs, and optional runtime integration
-product/, ui/          Catalog metadata, icon, and default host-renderer declaration
-```
-
-Layout and MCP integration follow [arxiv-source at commit 30b5534](https://github.com/zeyuyang8/arxiv-source/tree/30b5534a8ed17f53c3e87d7a092ae20b1e5f6d24). The financial tasks, tools, data, and checks are original implementations. This directory is standalone and does not import either sibling finance plugin or the reference checkout.
-
+`contract.py` declares the typed task/tool. `nanoagent.yaml` selects `runner: tool`. `src/plugin/` contains the deterministic calculator and MCP server. `verifier/` independently replays the calculation using Decimal arithmetic, with no imports from the calculator. `tests/` covers boundaries, malformed data, default handling, differential replay, and real MCP transport. `product/` and `ui/` provide catalog metadata and the host's standard structured-output display.
 
 ## Develop and run
 
-Use Python 3.12 or later. From this plugin's directory:
+Use Python 3.12+:
 
 ```bash
-# Financial calculations, fixture tools, malformed-output tests, and boundary tests:
 python3 tests/validate.py
-
-# Sample candidate output plus the independent verifier verdict; no dependencies needed:
-python3 tests/solve.py comfortable --years 30 > /tmp/retirement-planner-example.json
-
-# Full typed-contract and MCP integration, after installing uv:
 uv sync --frozen --extra dev
 uv run python tests/validate.py --require-runtime
 uv run ruff check .
+# With NanoAgent installed, check publication rules too:
+nanoagent plugin inspect .
 ```
 
-The standard-library test command explicitly skips the integration tests if runtime dependencies are missing. `--require-runtime` fails if any tests are skipped, so a partial run cannot count as complete runtime validation. Integration tests round-trip real slimconfig contracts, call every MCP handler, and launch the actual stdio server with an MCP client.
-
-`uv.lock` inherits the resolved dependency graph and package hashes from the supplied arxiv-source reference, with this project's identity updated. The slimconfig source follows NanoAgent's required `master` branch declaration; `uv.lock` pins the reference's exact commit for frozen installs. Runtime dependency installation requires network access once; the task itself runs offline afterward. The frozen lock still needs a successful uv sync on a network-enabled machine to confirm installation.
-
-To start the server directly after installation:
+The dependency-free run skips integration tests when dependencies are absent. `--require-runtime` fails on skipped tests. For a direct local calculation from the editable example:
 
 ```bash
-NANOAGENT_WORKSPACE=/tmp uv run --frozen python -m plugin
+PYTHONPATH=src python3 -c 'import json; from plugin.calculations import solve; print(json.dumps(solve(json.load(open("tests/example.json"))), indent=2))'
 ```
 
-The server communicates via MCP stdio; it is normally launched by NanoAgent, not used as an interactive terminal program. `tests/solve.py` is an offline example candidate generator, excluded from the MCP tool list; it is not an agent evaluation run.
+The MCP server requires `NANOAGENT_WORKSPACE`; after installation it starts with `NANOAGENT_WORKSPACE=/tmp uv run --frozen python -m plugin`. No network access or filesystem writes are requested by this plugin. Every calculation is independently verified; verification ignores supplied reference answers and rejects wrong assumptions, missing/extra fields, booleans in integer fields, and changed results. Invalid essential inputs return clear MCP error results.
 
-## Verifier
+The standard layout follows arxiv-source at commit 30b5534 and NanoAgent v0001. The slimconfig source follows NanoAgent's required master declaration; `uv.lock` pins its resolved commit. Version 0.2.0 replaces the incompatible scenario-based API. Old scenario IDs, schedule outputs, and offline scenario solver are intentionally removed.
 
-The verifier uses Decimal arithmetic and solves tax-bracket withdrawal gross-ups algebraically, independently of the sample solver’s integer tax arithmetic and binary search. This checks that withdrawals also fund their own tax, and that minimum-withdrawal surpluses return to cash.
-
-The verifier accepts either contract dataclass instances (the harness interface) or raw dictionaries (local checks). Public entry points follow the reference: `verify_input(tool, value)`, `verify_output(tool, input_value, output_value, workspace)`, and `verify_task(task, arguments, output, reference, workspace)`. Verdicts contain `valid`, `score`, `message`, and `details`. The task check ignores any supplied reference answer and recomputes from trusted literals in `verifier/fixtures.py`. Tests ensure those literals match the packaged JSON. The verifier imports no MCP implementation code and reads no agent-controlled fixture files.
-
-Checks reject missing/extra fields, changed values, truncated or duplicated rows, incorrect ordering, booleans/floats substituted for integer cents, unknown scenarios, and invalid input bounds. Tool verifiers compare retrieved data to fixtures; task verifiers use independent financial implementations. Tests include hand-calculated cases, all bundled scenarios, negative-output mutations, and 100 deterministically seeded scenario variations per plugin.
-
-
-## Limitations and submission evidence
-
-This is a deterministic projection, not a search for a globally optimal tax strategy. Tax brackets and the mandatory withdrawal percentage are fictional and do not model current law. Returns are fixed per account; there is no market randomness, sequence-of-returns analysis, fees, inheritance, healthcare modeling, or pension indexing.
-
-These scenarios demonstrate calculations under stated assumptions and are not personalized financial advice. No RUSH Lab publication or live agent run is claimed. Collect actual task inputs, validation logs, and verifier verdicts outside this repository for the assignment PDF; the example command above writes to `/tmp` for that reason. A passing sample solver run demonstrates the verifier path, not that an agent successfully completed the task.
+For the assignment, collect live task inputs, logs, and verifier verdicts outside this repository for the report. Passing local checks is not a claim of marketplace publication or a successful live chat run. Interpreting ambiguous natural-language facts is the outer chat's responsibility; deterministic verification validates the structured calculation request, not the user's intended meaning.

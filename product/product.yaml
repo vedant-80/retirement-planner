@@ -1,10 +1,11 @@
 _ > nanoagent.plugin.v0001.ProductConfig:
-tagline: "Retirement Sustainability Planner"
-summary: "Solve a reproducible finance scenario using typed data tools and an executable verifier."
+tagline: Retirement Age Calculator
+summary: Find the earliest retirement age using the fixed 4% rule. Ask for current age, investments, annual take-home income, and annual expenses if missing; never invent personal facts. Pass null for unspecified optional rates. The tool computes the result; do not calculate years manually.
 highlights:
-  - "Bundled scenarios; no live financial data or API keys"
-  - "Explicit rounding and independently verified calculations"
+  - "Custom income, spending, age, and investments"
+  - "4% target; defaults are explicit and overridable"
+  - "One calculation call; independently verified result"
 steps:
-  - "Choose a scenario listed in the README"
-  - "Retrieve assumptions using the provided tools"
-  - "Submit the complete structured result"
+  - "Describe your situation using one currency"
+  - "Provide missing essential values and review the defaults"
+  - "Run the calculator and review the verified summary"

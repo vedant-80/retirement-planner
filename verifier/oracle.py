@@ -1,88 +1,92 @@
-"""Independent Decimal annual replay with bracketwise withdrawal gross-up."""
-from decimal import Decimal, ROUND_HALF_UP, localcontext
-from .fixtures import scenario
+"""Independent Decimal replay of the declared financial model."""
 
-def validate_arguments(args):
-    if type(args) is not dict or set(args) != {'scenario_id', 'years'}:
-        raise ValueError('Expected scenario_id and years')
-    scenario(args['scenario_id'])
-    if type(args['years']) is not int or not 1 <= args['years'] <= 60:
-        raise ValueError('years must be integer 1 to 60')
+from dataclasses import asdict, is_dataclass
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 
-def money(value):
-    return int(value.quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
-def expected(args):
+def plain(value):
+    return asdict(value) if is_dataclass(value) else value
+
+
+def integer(value, name, low, high):
+    if type(value) is not int or not low <= value <= high:
+        raise ValueError(f"{name} must be an integer from {low} to {high}")
+    return value
+
+
+def normalize(value):
+    args = plain(value)
+    fields = {
+        "current_age",
+        "investments_cents",
+        "annual_income_cents",
+        "annual_expenses_cents",
+        "investment_return_bps",
+        "wage_growth_bps",
+        "spending_inflation_bps",
+    }
+    if type(args) is not dict or set(args) != fields:
+        raise ValueError("Supply every declared field; use null for optional rate defaults")
+    if type(args["current_age"]) is int and args["current_age"] >= 100:
+        raise ValueError("Starting age must be below 100; the retirement search ends at age 100")
+    result = {"current_age": integer(args["current_age"], "current_age", 0, 99)}
+    for key in ("investments_cents", "annual_income_cents", "annual_expenses_cents"):
+        result[key] = integer(args[key], key, 0, 10**15)
+    defaults = []
+    for key, default, low in (
+        ("investment_return_bps", 900, -10000),
+        ("wage_growth_bps", 200, -10000),
+        ("spending_inflation_bps", 200, 0),
+    ):
+        value = args[key]
+        if value is None:
+            defaults.append(key)
+            value = default
+        result[key] = integer(value, key, low, 10000)
+    result.update(max_search_age=100, withdrawal_rate_bps=400)
+    return result, defaults
+
+
+def expected(value):
+    a, defaults = normalize(value)
     with localcontext() as context:
-        context.prec = 60
-        return replay(args)
-
-def replay(args):
-    fixture = scenario(args['scenario_id'])
-    rules = fixture['assumptions']
-    brackets = fixture['tax_schedule']['brackets']
-    def taxes(income):
-        total, previous = Decimal(0), 0
-        for band in brackets:
-            ceiling = income if band['upper_cents'] == 0 else band['upper_cents']
-            width = max(0, min(ceiling, income)-previous)
-            total += Decimal(width) * Decimal(band['rate_bps']) / 10000
-            previous = ceiling
-            if income <= ceiling:
+        context.prec = 200
+        wealth = a["investments_cents"]
+        pay = a["annual_income_cents"]
+        cost = a["annual_expenses_cents"]
+        age = a["current_age"]
+        reason = "search_limit"
+        while True:
+            if wealth * 400 >= cost * 10000:
+                reason = "goal_reached"
                 break
-        return money(total)
-    cash = fixture['balances']['cash_cents']
-    deferred = fixture['balances']['tax_deferred_cents']
-    free = fixture['balances']['tax_free_cents']
-    spending = rules['annual_spending_cents']
-    history, failure = [], 0
-    for year in range(1, args['years'] + 1):
-        gains = [money(Decimal(amount) * rules[key] / 10000) for amount,key in
-                 ((cash,'cash_return_bps'), (deferred,'deferred_return_bps'), (free,'tax_free_return_bps'))]
-        cash += gains[0]
-        deferred += gains[1]
-        free += gains[2]
-        pension = rules['annual_income_cents'] if year >= rules['income_start_year'] else 0
-        required = min(deferred, money(Decimal(deferred) * rules['minimum_deferred_bps'] / 10000))
-        dw = required
-        cw = min(cash, max(0, spending + taxes(pension+dw) - pension - dw))
-        # Solve each marginal tax segment algebraically, correcting for cent rounding.
-        need = spending - pension - cw
-        if dw - taxes(pension+dw) < need:
-            chosen = None
-            lower = 0
-            base_tax = Decimal(0)
-            for band in brackets:
-                upper = band['upper_cents'] or (pension + deferred + 1)
-                rate = Decimal(band['rate_bps']) / 10000
-                # dw - (base_tax + (pension+dw-lower)*rate) >= need.
-                root = (Decimal(need) + base_tax + (pension-lower)*rate) / (1-rate)
-                candidate = max(required, lower-pension, int(root)-2, 0)
-                while candidate <= deferred and pension+candidate <= upper:
-                    if candidate - taxes(pension+candidate) >= need:
-                        chosen = candidate
-                        break
-                    candidate += 1
-                if chosen is not None:
-                    break
-                base_tax += Decimal(upper-lower)*rate
-                lower = upper
-            dw = deferred if chosen is None else chosen
-        fw = min(free, max(0, spending + taxes(pension+dw) - pension - cw - dw))
-        paid_tax = taxes(pension+dw)
-        available = pension + cw + dw + fw - paid_tax
-        excess = max(0, available-spending)
-        shortage = max(0, spending-available)
-        cash, deferred, free = cash-cw+excess, deferred-dw, free-fw
-        history.append({'year': year, 'spending_cents': spending, 'income_cents': pension,
-                        'cash_growth_cents': gains[0], 'deferred_growth_cents': gains[1], 'tax_free_growth_cents': gains[2],
-                        'minimum_deferred_cents': required, 'cash_withdrawal_cents': cw,
-                        'deferred_withdrawal_cents': dw, 'tax_free_withdrawal_cents': fw,
-                        'tax_cents': paid_tax, 'surplus_cents': excess, 'shortfall_cents': shortage,
-                        'ending_cash_cents': cash, 'ending_deferred_cents': deferred, 'ending_tax_free_cents': free})
-        if shortage:
-            failure = year
-            break
-        spending = money(Decimal(spending) * (10000 + rules['inflation_bps']) / 10000)
-    return {'scenario_id': args['scenario_id'], 'years_requested': args['years'], 'sustainable': failure == 0,
-            'first_shortfall_year': failure, 'total_tax_cents': sum(r['tax_cents'] for r in history), 'schedule': history}
+            if age >= a["max_search_age"]:
+                break
+            gain = int(
+                (Decimal(wealth) * Decimal(a["investment_return_bps"]) / 10000).quantize(
+                    Decimal(1), rounding=ROUND_HALF_UP
+                )
+            )
+            next_wealth = wealth + gain + pay - cost
+            pay += int((Decimal(pay) * a["wage_growth_bps"] / 10000).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+            cost += int(
+                (Decimal(cost) * a["spending_inflation_bps"] / 10000).quantize(Decimal(1), rounding=ROUND_HALF_UP)
+            )
+            age += 1
+            wealth = max(0, next_wealth)
+            if next_wealth < 0:
+                reason = "funding_shortfall"
+                break
+        success = reason == "goal_reached"
+        return {
+            "goal_reached": success,
+            "retirement_age": age if success else None,
+            "years_until_retirement": age - a["current_age"] if success else None,
+            "projection_age": age,
+            "projected_investments_cents": wealth,
+            "projected_annual_expenses_cents": cost,
+            "required_investments_cents": cost * 25,
+            "reason": reason,
+            "assumptions": a,
+            "defaults_applied": defaults,
+        }

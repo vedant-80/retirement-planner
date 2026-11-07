@@ -1,92 +1,81 @@
-"""Typed tool and task declarations; money is always integer cents."""
+"""Typed custom financial inputs and compact outputs. No field defaults: null selects documented assumptions."""
+
 from dataclasses import dataclass
 from enum import Enum
+from typing import Annotated
+
 from slimconfig import Output
 
-@dataclass
-class ScenarioInput(Output):
-    scenario_id: str
-
-@dataclass
-class RulesInput(Output):
-    pass
-
-@dataclass
-class RulesOutput(Output):
-    rules: list[str]
 
 class Tool(Enum):
-    GET_ACCOUNT_BALANCES = 'get_account_balances'
-    GET_ASSUMPTIONS = 'get_assumptions'
-    GET_TAX_SCHEDULE = 'get_tax_schedule'
-    GET_RULES = 'get_rules'
+    CALCULATE = "calculate_retirement"
+
 
 class Task(Enum):
-    PROJECT_RETIREMENT = 'project-retirement'
+    CALCULATE = "project-retirement"
+
 
 @dataclass
 class RetirementInput(Output):
-    scenario_id: str
-    years: int
+    current_age: Annotated[int, "Current age in whole years, 0 to 99; ask if missing. Ages 100 or above are rejected."]
+    investments_cents: Annotated[
+        int, "Current invested balance in integer cents; ask if missing. No currency conversion is performed."
+    ]
+    annual_income_cents: Annotated[
+        int, "Annual take-home income in integer cents; ask if missing. Do not infer taxes from gross salary."
+    ]
+    annual_expenses_cents: Annotated[
+        int, "Current annual expenses in integer cents; ask if missing. Include all spending; use one currency."
+    ]
+    investment_return_bps: Annotated[
+        int | None, "Nominal annual investment return in basis points (9% = 900). Use null if unspecified: default 900."
+    ]
+    wage_growth_bps: Annotated[int | None, "Nominal annual wage growth in basis points; null defaults to 200 (2%)."]
+    spending_inflation_bps: Annotated[
+        int | None, "Annual spending inflation in basis points; null defaults to 200 (2%)."
+    ]
+
 
 @dataclass
-class BalancesOutput(Output):
-    cash_cents: int
-    tax_deferred_cents: int
-    tax_free_cents: int
+class RetirementAssumptions(Output):
+    current_age: Annotated[int, "Current age in whole years, 0 to 99; ask if missing. Ages 100 or above are rejected."]
+    investments_cents: Annotated[
+        int, "Current invested balance in integer cents; ask if missing. No currency conversion is performed."
+    ]
+    annual_income_cents: Annotated[
+        int, "Annual take-home income in integer cents; ask if missing. Do not infer taxes from gross salary."
+    ]
+    annual_expenses_cents: Annotated[
+        int, "Current annual expenses in integer cents; ask if missing. Include all spending; use one currency."
+    ]
+    investment_return_bps: Annotated[
+        int, "Nominal annual investment return in basis points (9% = 900). Use null if unspecified: default 900."
+    ]
+    wage_growth_bps: Annotated[int, "Nominal annual wage growth in basis points; null defaults to 200 (2%)."]
+    spending_inflation_bps: Annotated[int, "Annual spending inflation in basis points; null defaults to 200 (2%)."]
+    max_search_age: Annotated[int, "Search ends at age 100, including that birthday."]
+    withdrawal_rate_bps: Annotated[
+        int, "Fixed 400 basis points (4%); required investments equal 25 times annual expenses."
+    ]
 
-@dataclass
-class AssumptionsOutput(Output):
-    annual_spending_cents: int
-    annual_income_cents: int
-    income_start_year: int
-    inflation_bps: int
-    cash_return_bps: int
-    deferred_return_bps: int
-    tax_free_return_bps: int
-    minimum_deferred_bps: int
-
-@dataclass
-class TaxBracket(Output):
-    upper_cents: int
-    rate_bps: int
-
-@dataclass
-class TaxScheduleOutput(Output):
-    brackets: list[TaxBracket]
-
-@dataclass
-class RetirementYear(Output):
-    year: int
-    spending_cents: int
-    income_cents: int
-    cash_growth_cents: int
-    deferred_growth_cents: int
-    tax_free_growth_cents: int
-    minimum_deferred_cents: int
-    cash_withdrawal_cents: int
-    deferred_withdrawal_cents: int
-    tax_free_withdrawal_cents: int
-    tax_cents: int
-    surplus_cents: int
-    shortfall_cents: int
-    ending_cash_cents: int
-    ending_deferred_cents: int
-    ending_tax_free_cents: int
 
 @dataclass
 class RetirementOutput(Output):
-    scenario_id: str
-    years_requested: int
-    sustainable: bool
-    first_shortfall_year: int
-    total_tax_cents: int
-    schedule: list[RetirementYear]
+    goal_reached: Annotated[bool, "Whether the 4% target was reached by age 100."]
+    retirement_age: Annotated[int | None, "Earliest whole-year retirement age, or null if not found."]
+    years_until_retirement: Annotated[int | None, "Whole years until retirement, or null if not found."]
+    projection_age: Annotated[int, "Age at the final target check or unfunded year end."]
+    projected_investments_cents: Annotated[
+        int, "Investments at projection_age; zero if an income shortfall exhausted funds."
+    ]
+    projected_annual_expenses_cents: Annotated[int, "Annual expenses projected for projection_age."]
+    required_investments_cents: Annotated[int, "25 times projected annual expenses."]
+    reason: Annotated[
+        str, "goal_reached, search_limit, or funding_shortfall. This is a fixed-assumption projection, not a guarantee."
+    ]
+    assumptions: Annotated[RetirementAssumptions, "All effective inputs, including defaults and fixed policy."]
+    defaults_applied: Annotated[list[str], "Names of nullable input fields that used their defaults."]
 
-TOOLS = {
-    Tool.GET_ACCOUNT_BALANCES: (ScenarioInput, BalancesOutput),
-    Tool.GET_ASSUMPTIONS: (ScenarioInput, AssumptionsOutput),
-    Tool.GET_TAX_SCHEDULE: (ScenarioInput, TaxScheduleOutput),
-    Tool.GET_RULES: (RulesInput, RulesOutput),
-}
-TASKS = {Task.PROJECT_RETIREMENT: (RetirementInput, RetirementOutput)}
+
+TOOLS = {Tool.CALCULATE: (RetirementInput, RetirementOutput)}
+TASKS = {Task.CALCULATE: (RetirementInput, RetirementOutput)}

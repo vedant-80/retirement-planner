@@ -1,7 +1,7 @@
 _ > nanoagent.plugin.v0001.ManifestConfig:
 id: retirement-planner
-name: Retirement Sustainability Planner
-version: 0.1.0
+name: Retirement Age Calculator
+version: 0.2.0
 status: ready
 spec: nanoagent.plugin/v0001
 
@@ -16,20 +16,13 @@ permissions > nanoagent.plugin.v0001.PermissionsConfig:
     write: []
 
 tools > dict[contract.Tool, nanoagent.plugin.v0001.ToolConfig]:
-  get_account_balances:
-    description: Retrieve starting cash, tax-deferred and tax-free balances
-  get_assumptions:
-    description: Retrieve spending, pension, inflation, returns and minimum withdrawal assumptions
-  get_tax_schedule:
-    description: Retrieve the scenario fictional progressive tax brackets
-  get_rules:
-    description: Retrieve annual event order, withdrawal priority, tax and rounding rules
+  calculate_retirement:
+    description: Find the earliest retirement age using the fixed 4% rule. Ask for current age, investments, annual take-home income, and annual expenses if missing; never invent personal facts. Pass null for unspecified optional rates. The tool computes the result; do not calculate years manually.
 
 tasks > dict[contract.Task, nanoagent.plugin.v0001.TaskConfig]:
   project-retirement:
-    description: Retirement Sustainability Planner
-    runner: agent
-    tools: [get_account_balances, get_assumptions, get_tax_schedule, get_rules]
+    description: Find the earliest retirement age using the fixed 4% rule. Ask for current age, investments, annual take-home income, and annual expenses if missing; never invent personal facts. Pass null for unspecified optional rates. The tool computes the result; do not calculate years manually.
+    runner: tool
+    tools: [calculate_retirement]
     reference: null
-    instructions: |-
-      Retrieve all scenario data and rules. Project the requested years (integer 1 to 60) using the prescribed withdrawal order. Submit every year through the horizon or first shortfall, including tax, withdrawals, growth, surplus and ending balances. This is a deterministic sustainability projection, not a globally tax-optimal strategy. See RetirementOutput for all required fields.
+    instructions: Use custom inputs, not scenario IDs. Check investments >= 25 times inflated annual expenses at each age, now through 100. Default nominal return is 9%, wage growth 2%, and spending inflation 2%. Reject starting ages >=100. Python performs the full projection and returns a compact summary.
